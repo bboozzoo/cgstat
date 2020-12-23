@@ -1,0 +1,5 @@
+#set datafile separator ','
+#set xdata time
+set title title
+set ylabel 'RSS [MB]'
+plot filename using ($1/(1024*1024)) with lines title 'RSS [MB]'
