@@ -33,9 +33,13 @@ fn read_stat_key(cgname: &Path, key: &str) -> io::Result<u64> {
     Err(io::Error::new(io::ErrorKind::NotFound, "key not found"))
 }
 
-fn format_usage(opts : &Options) -> io::Result<()> {
-    print!("{}", opts.usage("Usage: cgstat [-d DURATION]"));
-    Ok(())
+fn format_usage(opts : &Options) -> String {
+    format!("{}", opts.usage("Usage: cgstat [-d DURATION]"))
+}
+
+enum OptionsError {
+    Usage(String),
+    Invalid(String)
 }
 
 struct CgstatOptions {
@@ -43,18 +47,17 @@ struct CgstatOptions {
     cg_name: String,
 }
 
-fn parse_options() -> Result<CgstatOptions, String> {
+fn parse_options() -> Result<CgstatOptions, OptionsError> {
     let mut opt = Options::new();
     opt.optflag("h", "help", "Show help");
-    opt.optopt("d", "duration", "Sample inerval", "DURATION");
+    opt.optopt("d", "duration", "Sample inerval (float)", "DURATION");
 
     let cmdline_opts : Vec<String> = env::args().skip(1).collect();
     let matches = opt.parse(cmdline_opts)
-        .map_err(|err| format!("error parsing arguments: {}", err))?;
+        .map_err(|err| OptionsError::Invalid(format!("error parsing arguments: {}", err)))?;
 
     if matches.opt_present("h") {
-        format_usage(&opt);
-        process::exit(0);
+        return Err(OptionsError::Usage(format_usage(&opt)));
     }
 
     let mut cgopts = CgstatOptions{
@@ -65,12 +68,12 @@ fn parse_options() -> Result<CgstatOptions, String> {
     if let Some(intv_str) = matches.opt_str("d") {
         match intv_str.parse() {
             Ok(intv) => { cgopts.interval = Duration::from_secs_f32(intv) },
-            Err(err) => { return Err(format!("cannot parse interval: {}", err)) }
+            Err(err) => { return Err(OptionsError::Invalid(format!("cannot parse interval: {}", err)) )}
         };
     }
 
     if matches.free.len() != 1 {
-        return Err(String::from("no cgroup name"));
+        return Err(OptionsError::Invalid(String::from("no cgroup name")));
     }
     cgopts.cg_name = String::from(&matches.free[0]);
 
@@ -80,9 +83,17 @@ fn parse_options() -> Result<CgstatOptions, String> {
 fn main() -> io::Result<()> {
     let opts = match parse_options() {
         Ok(opts) => { opts }
-        Err(err) => {
-            eprintln!("error: {:?}", err);
-            process::exit(1);
+        Err(optserr) => {
+            match optserr {
+                OptionsError::Usage(usage) => {
+                    eprint!("{}", usage);
+                    process::exit(0);
+                }
+                OptionsError::Invalid(err) => {
+                    eprintln!("error: {:?}", err);
+                    process::exit(1);
+                }
+            }
         }
     };
     let cgroup_dir = Path::new(CGROUP_BASE_MOUNT).join("memory").join(opts.cg_name);
