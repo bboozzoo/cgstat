@@ -14,6 +14,7 @@ use chrono::Utc;
 
 const CGROUP_BASE_MOUNT: &str = "/sys/fs/cgroup";
 
+// TODO: consider passing reader as parameter.
 fn read_stat_key(cgname: &Path, key: &str) -> io::Result<u64> {
     let f = File::open(cgname.join("memory.stat"))?;
     let f = BufReader::new(f);
@@ -37,8 +38,12 @@ fn format_usage(opts: &Options) -> String {
     opts.usage("Usage: cgstat [-d DURATION]")
 }
 
+/// Represents an error that occurred while parsing options.
 enum OptionsError {
+    /// Usage was requested via an explicit flag. Carries the formatted usage
+    /// string.
     Usage(String),
+    /// Invaid option occurred.
     Invalid(String),
 }
 
@@ -81,6 +86,7 @@ fn parse_options() -> Result<CgstatOptions, OptionsError> {
     if matches.free.len() != 1 {
         return Err(OptionsError::Invalid(String::from("no cgroup name")));
     }
+    // TODO: remove leading / if present
     cgopts.cg_name = String::from(&matches.free[0]);
 
     Ok(cgopts)
