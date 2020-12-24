@@ -52,6 +52,15 @@ struct CgstatOptions {
     cg_name: String,
 }
 
+impl Default for CgstatOptions {
+    fn default() -> CgstatOptions {
+        CgstatOptions{
+            interval: Duration::new(1, 0),
+            cg_name: String::new(),
+        }
+    }
+}
+
 fn parse_options() -> Result<CgstatOptions, OptionsError> {
     let mut opt = Options::new();
     opt.optflag("h", "help", "Show help");
@@ -66,10 +75,7 @@ fn parse_options() -> Result<CgstatOptions, OptionsError> {
         return Err(OptionsError::Usage(format_usage(&opt)));
     }
 
-    let mut cgopts = CgstatOptions {
-        interval: Duration::new(1, 0),
-        cg_name: String::new(),
-    };
+    let mut cgopts = CgstatOptions::default();
 
     if let Some(intv_str) = matches.opt_str("d") {
         cgopts.interval = intv_str
