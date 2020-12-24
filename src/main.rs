@@ -70,7 +70,7 @@ impl Default for CgstatOptions {
     }
 }
 
-fn parse_options(cmdline_opts: &Vec<String>) -> Result<CgstatOptions, OptionsError> {
+fn parse_options(cmdline_opts: &[String]) -> Result<CgstatOptions, OptionsError> {
     let mut opt = Options::new();
     opt.optflag("h", "help", "Show help");
     opt.optopt("d", "duration", "Sample inerval (float)", "DURATION");
@@ -89,7 +89,7 @@ fn parse_options(cmdline_opts: &Vec<String>) -> Result<CgstatOptions, OptionsErr
         cgopts.interval = intv_str
             .parse::<f32>()
             .map_err(|err| OptionsError::Invalid(format!("cannot parse interval: {}", err)))
-            .map(|v| Duration::from_secs_f32(v))?;
+            .map(Duration::from_secs_f32)?;
     }
 
     if matches.free.len() != 1 {
@@ -107,7 +107,7 @@ fn parse_options(cmdline_opts: &Vec<String>) -> Result<CgstatOptions, OptionsErr
 }
 
 fn main() -> Result<(), String> {
-    let opts = match parse_options(&env::args().skip(1).collect()) {
+    let opts = match parse_options(&env::args().skip(1).collect::<Vec<String>>()) {
         Ok(opts) => opts,
         Err(optserr) => match optserr {
             OptionsError::Usage(usage) => {
