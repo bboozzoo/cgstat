@@ -14,14 +14,10 @@ use chrono::Utc;
 
 const CGROUP_BASE_MOUNT: &str = "/sys/fs/cgroup";
 
-// TODO: consider passing reader as parameter.
-fn read_stat_key(cgname: &Path, key: &str) -> io::Result<u64> {
-    let f = File::open(cgname.join("memory.stat"))?;
-    let f = BufReader::new(f);
-    let mut pref = String::from(key);
-    pref.push(' ');
-    for l in f.lines() {
-        let sl = l.unwrap();
+fn find_key_val(r: &mut dyn BufRead, key: &str) -> io::Result<Option<u64>> {
+    let pref = format!("{} ", key);
+    for l in r.lines() {
+        let sl = l?;
         if !sl.starts_with(&pref) {
             continue;
         }
@@ -29,9 +25,15 @@ fn read_stat_key(cgname: &Path, key: &str) -> io::Result<u64> {
         let nv: u64 = just_val
             .parse()
             .expect(&format!("cannot convert '{}'", just_val));
-        return Ok(nv);
+        return Ok(Some(nv));
     }
-    Err(io::Error::new(io::ErrorKind::NotFound, "key not found"))
+    Ok(None)
+}
+
+fn read_stat_key(cgname: &Path, key: &str) -> io::Result<Option<u64>> {
+    let f = File::open(cgname.join("memory.stat"))?;
+    let mut f = BufReader::new(f);
+    find_key_val(&mut f, key)
 }
 
 fn format_usage(opts: &Options) -> String {
@@ -48,13 +50,15 @@ enum OptionsError {
 }
 
 struct CgstatOptions {
+    /// Sampling interval.
     interval: Duration,
+    // Cgroup name.
     cg_name: String,
 }
 
 impl Default for CgstatOptions {
     fn default() -> CgstatOptions {
-        CgstatOptions{
+        CgstatOptions {
             interval: Duration::new(1, 0),
             cg_name: String::new(),
         }
@@ -93,7 +97,7 @@ fn parse_options() -> Result<CgstatOptions, OptionsError> {
     Ok(cgopts)
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<(), String> {
     let opts = match parse_options() {
         Ok(opts) => opts,
         Err(optserr) => match optserr {
@@ -111,7 +115,13 @@ fn main() -> io::Result<()> {
         .join("memory")
         .join(opts.cg_name);
     loop {
-        let rss = read_stat_key(cgroup_dir.as_path(), "rss").expect("failed to read");
+        let rss = match read_stat_key(cgroup_dir.as_path(), "rss") {
+            Ok(val) => match val {
+                None => return Err("key not found in file".to_string()),
+                Some(rss) => rss,
+            },
+            Err(err) => return Err(err.to_string()),
+        };
         let now = Utc::now();
         println!("{},{}", now.to_rfc3339(), rss);
         sleep(opts.interval);
