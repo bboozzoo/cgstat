@@ -44,6 +44,7 @@ fn format_usage(opts: &Options) -> String {
 }
 
 /// Represents an error that occurred while parsing options.
+#[derive(Debug, PartialEq)]
 enum OptionsError {
     /// Usage was requested via an explicit flag. Carries the formatted usage
     /// string.
@@ -52,6 +53,7 @@ enum OptionsError {
     Invalid(String),
 }
 
+#[derive(Debug, PartialEq)]
 struct CgstatOptions {
     /// Sampling interval.
     interval: Duration,
@@ -132,5 +134,67 @@ fn main() -> Result<(), String> {
         let now = Utc::now();
         println!("{},{}", now.to_rfc3339(), rss);
         sleep(opts.interval);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::io::Cursor;
+    use std::string::ToString;
+
+    fn vec_of_strings<T: ToString>(inp: Vec<T>) -> Vec<String> {
+        inp.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn test_parse_options_usage() {
+        let res = parse_options(&vec_of_strings(vec!["-h"]));
+        assert!(matches!(res, Err(OptionsError::Usage(_))));
+        let help_str = match res {
+            Err(oerr) => match oerr {
+                OptionsError::Usage(h) => h,
+                _ => {
+                    panic!("unexpected")
+                }
+            },
+            _ => {
+                panic!("unexpected")
+            }
+        };
+        assert!(help_str.len() > 0);
+    }
+
+    #[test]
+    fn test_parse_options_all() {
+        let res = parse_options(&vec_of_strings(vec!["-d", "0.1", "/foo/bar"]));
+        assert_eq!(
+            Ok(CgstatOptions {
+                interval: Duration::from_secs_f32(0.1),
+                cg_name: String::from("foo/bar"),
+            }),
+            res
+        );
+    }
+
+    #[test]
+    fn test_find_key_val_happy_many() {
+        let r = "
+foo 1234
+baz_baz 1111
+bar 4443
+baz 9999
+";
+        let res = find_key_val(&mut Cursor::new(r), "baz");
+        assert!(res.is_ok());
+        assert_eq!(Some(9999 as u64), res.unwrap());
+    }
+
+    #[test]
+    fn test_find_key_val_happy_simple() {
+        let r = "baz 1234";
+        let res = find_key_val(&mut Cursor::new(r), "baz");
+        assert!(res.is_ok());
+        assert_eq!(Some(1234 as u64), res.unwrap());
     }
 }
