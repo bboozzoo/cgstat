@@ -13,7 +13,7 @@ extern crate chrono;
 use chrono::Utc;
 
 
-const cgroup_base_mount: &str = "/sys/fs/cgroup";
+const CGROUP_BASE_MOUNT: &str = "/sys/fs/cgroup";
 
 fn read_stat_key(cgname: &Path, key: &str) -> io::Result<u64> {
     let f = File::open(cgname.join("memory.stat"))?;
@@ -85,7 +85,7 @@ fn main() -> io::Result<()> {
             process::exit(1);
         }
     };
-    let cgroup_dir = Path::new(cgroup_base_mount).join("memory").join(opts.cg_name);
+    let cgroup_dir = Path::new(CGROUP_BASE_MOUNT).join("memory").join(opts.cg_name);
     loop {
         let rss = read_stat_key(cgroup_dir.as_path(), "rss").expect("failed to read");
         let now = Utc::now();
