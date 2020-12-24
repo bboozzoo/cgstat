@@ -68,12 +68,11 @@ impl Default for CgstatOptions {
     }
 }
 
-fn parse_options() -> Result<CgstatOptions, OptionsError> {
+fn parse_options(cmdline_opts: &Vec<String>) -> Result<CgstatOptions, OptionsError> {
     let mut opt = Options::new();
     opt.optflag("h", "help", "Show help");
     opt.optopt("d", "duration", "Sample inerval (float)", "DURATION");
 
-    let cmdline_opts: Vec<String> = env::args().skip(1).collect();
     let matches = opt
         .parse(cmdline_opts)
         .map_err(|err| OptionsError::Invalid(format!("error parsing arguments: {}", err)))?;
@@ -95,13 +94,18 @@ fn parse_options() -> Result<CgstatOptions, OptionsError> {
         return Err(OptionsError::Invalid(String::from("no cgroup name")));
     }
     // TODO: remove leading / if present
-    cgopts.cg_name = String::from(&matches.free[0]);
+    let cg_name = if Path::new(&matches.free[0]).is_absolute() {
+        &matches.free[0][1..]
+    } else {
+        &matches.free[0]
+    };
+    cgopts.cg_name = String::from(cg_name);
 
     Ok(cgopts)
 }
 
 fn main() -> Result<(), String> {
-    let opts = match parse_options() {
+    let opts = match parse_options(&env::args().skip(1).collect()) {
         Ok(opts) => opts,
         Err(optserr) => match optserr {
             OptionsError::Usage(usage) => {
