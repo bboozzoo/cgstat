@@ -19,22 +19,21 @@ fn read_stat_key(cgname: &Path, key: &str) -> io::Result<u64> {
     let f = File::open(cgname.join("memory.stat"))?;
     let f = BufReader::new(f);
     let mut pref = String::from(key);
-    pref.push_str(" ");
+    pref.push(' ');
     for l in f.lines() {
         let sl = l.unwrap();
         if !sl.starts_with(&pref) {
             continue;
         }
         let just_val = &sl[pref.len()..];
-        let nv =
-            u64::from_str_radix(just_val, 10).expect(&format!("cannot convert '{}'", just_val));
+        let nv : u64 = just_val.parse().expect(&format!("cannot convert '{}'", just_val));
         return Ok(nv);
     }
     Err(io::Error::new(io::ErrorKind::NotFound, "key not found"))
 }
 
 fn format_usage(opts : &Options) -> String {
-    format!("{}", opts.usage("Usage: cgstat [-d DURATION]"))
+    opts.usage("Usage: cgstat [-d DURATION]")
 }
 
 enum OptionsError {
