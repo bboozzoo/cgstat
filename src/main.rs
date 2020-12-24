@@ -22,9 +22,12 @@ fn find_key_val(r: &mut dyn BufRead, key: &str) -> io::Result<Option<u64>> {
             continue;
         }
         let just_val = &sl[pref.len()..];
-        let nv: u64 = just_val
-            .parse()
-            .expect(&format!("cannot convert '{}'", just_val));
+        let nv: u64 = just_val.parse().map_err(|err| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("cannot convert '{}': {}", just_val, err),
+            )
+        })?;
         return Ok(Some(nv));
     }
     Ok(None)
@@ -85,7 +88,7 @@ fn parse_options() -> Result<CgstatOptions, OptionsError> {
         cgopts.interval = intv_str
             .parse::<f32>()
             .map_err(|err| OptionsError::Invalid(format!("cannot parse interval: {}", err)))
-            .and_then(|v| Ok(Duration::from_secs_f32(v)))?;
+            .map(|v| Duration::from_secs_f32(v))?;
     }
 
     if matches.free.len() != 1 {
