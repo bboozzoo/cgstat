@@ -72,15 +72,10 @@ fn parse_options() -> Result<CgstatOptions, OptionsError> {
     };
 
     if let Some(intv_str) = matches.opt_str("d") {
-        match intv_str.parse() {
-            Ok(intv) => cgopts.interval = Duration::from_secs_f32(intv),
-            Err(err) => {
-                return Err(OptionsError::Invalid(format!(
-                    "cannot parse interval: {}",
-                    err
-                )))
-            }
-        };
+        cgopts.interval = intv_str
+            .parse::<f32>()
+            .map_err(|err| OptionsError::Invalid(format!("cannot parse interval: {}", err)))
+            .and_then(|v| Ok(Duration::from_secs_f32(v)))?;
     }
 
     if matches.free.len() != 1 {
