@@ -44,5 +44,5 @@ $ ./plot.py -o mem-plot.png mem.log
 
 ### TODO
 
-[ ] support cgroup v2
-[ ] configurable memory controller mount point
+- [ ] support cgroup v2
+- [ ] configurable memory controller mount point
